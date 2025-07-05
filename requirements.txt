@@ -6,3 +6,5 @@ virustotal-python
 dotenv
 python-decouple
 httpx
+uvicorn
+tldextract
