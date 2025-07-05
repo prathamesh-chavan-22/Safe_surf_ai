@@ -4,3 +4,4 @@ djangorestframework
 requests
 virustotal-python
 dotenv
+python-decouple

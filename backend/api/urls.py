@@ -1,7 +1,15 @@
 from django.urls import path
+from .auth_views import (
+    SendOTPView, VerifyOTPView, RegisterWithOTPView,
+    EmailLoginView, LogoutView
+)
 from .views import Calculate_Suspicion
 
-
 urlpatterns = [
-    path('check_url/', Calculate_Suspicion.as_view(), name='check_url'),
+    path('send-otp/', SendOTPView.as_view()),
+    path('verify-otp/', VerifyOTPView.as_view()),
+    path('register/', RegisterWithOTPView.as_view()),
+    path('login/', EmailLoginView.as_view()),
+    path('logout/', LogoutView.as_view()),
+    path('check-url/', Calculate_Suspicion.as_view()),
 ]

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SafeSurf URL Checker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      width: 300px;
+      margin: 5px 0;
+    }
+    #result, #authResult {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .safe { color: green; }
+    .suspicious { color: orange; }
+    .malicious { color: red; }
+  </style>
+</head>
+<body>
+
+  <h2>User Authentication</h2>
+  <input type="email" id="email" placeholder="Email"><br>
+  <input type="password" id="password" placeholder="Password"><br>
+  <input type="text" id="otp" placeholder="OTP (from email)"><br>
+
+  <button onclick="sendOTP()">Send OTP</button>
+  <button onclick="register()">Register</button>
+  <button onclick="login()">Login</button>
+  <button onclick="logout()">Logout</button>
+
+  <div id="authResult"></div>
+
+  <hr>
+
+  <h2>Check a URL</h2>
+  <input type="text" id="urlInput" placeholder="Enter a URL"><br>
+  <button onclick="checkURL()">Check URL</button>
+
+  <div id="result"></div>
+
+  <script>
+    let authToken = null;
+
+    function showMessage(id, message, color = 'black') {
+      const el = document.getElementById(id);
+      el.textContent = message;
+      el.style.color = color;
+    }
+
+    async function sendOTP() {
+      const email = document.getElementById('email').value;
+      const res = await fetch('http://127.0.0.1:8000/api/send-otp/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showMessage('authResult', '✅ OTP sent to your email', 'green');
+      } else {
+        showMessage('authResult', '❌ ' + (data.error || JSON.stringify(data)), 'red');
+      }
+    }
+
+    async function register() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const otp = document.getElementById('otp').value;
+
+      const res = await fetch('http://127.0.0.1:8000/api/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, otp })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showMessage('authResult', '✅ Registered successfully!', 'green');
+      } else {
+        showMessage('authResult', '❌ ' + (data.error || JSON.stringify(data)), 'red');
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      const res = await fetch('http://127.0.0.1:8000/api/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.token) {
+        authToken = data.token;
+        showMessage('authResult', '✅ Logged in successfully!', 'green');
+      } else {
+        showMessage('authResult', '❌ ' + (data.error || JSON.stringify(data)), 'red');
+      }
+    }
+
+    async function logout() {
+      if (!authToken) {
+        showMessage('authResult', 'You are not logged in.', 'orange');
+        return;
+      }
+
+      const res = await fetch('http://127.0.0.1:8000/api/logout/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ' + authToken
+        }
+      });
+
+      if (res.ok) {
+        authToken = null;
+        showMessage('authResult', '✅ Logged out.', 'green');
+      } else {
+        showMessage('authResult', '❌ Failed to log out.', 'red');
+      }
+    }
+
+    async function checkURL() {
+      const url = document.getElementById('urlInput').value;
+      const email = document.getElementById('email').value;
+      const resultDiv = document.getElementById('result');
+      resultDiv.textContent = 'Checking...';
+      resultDiv.className = '';
+
+      if (!authToken) {
+        resultDiv.textContent = 'Please login first.';
+        resultDiv.className = 'malicious';
+        return;
+      }
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/check-url/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Token ' + authToken
+          },
+          body: JSON.stringify({ url, email })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Unknown error');
+        }
+
+        const classification = data.classification || "unknown";
+        const reason = data.reason || "No reason provided.";
+
+        resultDiv.innerHTML = `
+          <div>Result: <span class="${classification.toLowerCase()}">${classification.toUpperCase()}</span></div>
+          <div>Reason: ${reason}</div>
+        `;
+        resultDiv.className = classification.toLowerCase();
+
+      } catch (error) {
+        resultDiv.textContent = `Error: ${error.message}`;
+        resultDiv.className = 'malicious';
+      }
+    }
+  </script>
+
+</body>
+</html>
