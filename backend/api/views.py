@@ -7,9 +7,14 @@ from rest_framework.response import Response
 from .modules.detect_and_expand import is_shortened_url
 from .modules.virustotal_checker import scan_url
 from .modules.homograph_detector import is_homograph 
-from .modules.Redirect_Analyzer import RedirectAnalyzer
 from .models import URLScanResult
 import threading
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from urllib.parse import urlparse
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -145,51 +150,56 @@ class Calculate_Suspicion(APIView):
             logger.error(f"❌ Failed to send email to {email}: {str(e)}")
 
 
-import httpx
-import logging
-from urllib.parse import urlparse
-from rest_framework.views import APIView
-from rest_framework.response import Response
-
-logger = logging.getLogger(__name__)
-
 class RedirectAnalyzer(APIView):
     def post(self, request):
-        from asgiref.sync import async_to_sync
-
         url = request.data.get("url", "").strip()
         if not url:
             return Response({"error": "Missing URL"}, status=400)
 
         try:
-            result = async_to_sync(self.analyze_redirects)(url)
+            result = self.analyze_with_selenium(url)
             return Response(result)
 
         except Exception as e:
             logger.error(f"❌ Unexpected error: {str(e)}")
             return Response({"error": "Internal Server Error"}, status=500)
 
-    async def analyze_redirects(self, url: str) -> dict:
-        try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
-                response = await client.get(url)
-                redirects = [str(r.headers.get("location", r.url)) for r in response.history]
+    def analyze_with_selenium(self, url: str) -> dict:
+        # Set up headless Chrome
+        options = Options()
+        options.headless = True
+        options.add_argument('--headless=new')  # New headless mode
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
 
-            final_url = str(response.url)
-            original_domain = urlparse(url).netloc
+        driver = webdriver.Chrome(
+            service=Service(ChromeDriverManager().install()),
+            options=options
+        )
+
+        try:
+            start_url = url
+            driver.get(start_url)
+
+            # Wait a bit to allow redirects to complete (adjust if needed)
+            driver.implicitly_wait(5)
+
+            final_url = driver.current_url
+            original_domain = urlparse(start_url).netloc
             final_domain = urlparse(final_url).netloc
             is_suspicious = original_domain != final_domain
 
             return {
-                "original_url": url,
+                "original_url": start_url,
                 "final_url": final_url,
-                "redirect_chain": redirects,
+                "redirect_chain": ["Intermediate URLs not tracked via Selenium"],
                 "is_suspicious": is_suspicious,
                 "reason": "Redirected to different domain" if is_suspicious else "No suspicious redirect"
             }
 
-        except httpx.TooManyRedirects:
-            return {"error": "Too many redirects"}
+        except Exception as e:
+            return {"error": f"Selenium error: {str(e)}"}
 
-        except httpx.RequestError as e:
-            return {"error": f"Failed to fetch URL: {str(e)}"}
+        finally:
+            driver.quit()

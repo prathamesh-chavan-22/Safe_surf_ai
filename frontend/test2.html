@@ -25,6 +25,20 @@
     .safe { color: green; }
     .suspicious { color: orange; }
     .malicious { color: red; }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(0,0,0,0.3);
+      border-top: 3px solid #000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -135,71 +149,70 @@
     }
 
     async function checkURL() {
-        const url = document.getElementById('urlInput').value;
-        const email = document.getElementById('email').value;
-        const resultDiv = document.getElementById('result');
-        resultDiv.textContent = 'Checking...';
-        resultDiv.className = '';
+      const url = document.getElementById('urlInput').value;
+      const email = document.getElementById('email').value;
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = 'Checking <span class="spinner"></span>';
+      resultDiv.className = '';
 
-        if (!authToken) {
-            resultDiv.textContent = 'Please login first.';
-            resultDiv.className = 'malicious';
-            return;
+      if (!authToken) {
+        resultDiv.innerHTML = 'Please login first.';
+        resultDiv.className = 'malicious';
+        return;
+      }
+
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ' + authToken
+        };
+
+        const body = JSON.stringify({ url, email });
+
+        // Run both requests in parallel
+        const [scanRes, redirectRes] = await Promise.all([
+          fetch('http://127.0.0.1:8000/api/check-url/', {
+            method: 'POST',
+            headers,
+            body
+          }),
+          fetch('http://127.0.0.1:8000/api/redirect-analyzer/', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ url }) // only URL needed for redirect analyzer
+          })
+        ]);
+
+        const scanData = await scanRes.json();
+        const redirectData = await redirectRes.json();
+
+        if (!scanRes.ok || !redirectRes.ok) {
+          throw new Error(scanData.error || redirectData.error || 'Unknown error');
         }
 
-        try {
-            const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': 'Token ' + authToken
-            };
+        const classification = scanData.classification || "unknown";
+        const reason = scanData.reason || "No reason provided.";
 
-            const body = JSON.stringify({ url, email });
+        const redirectInfo = `
+          <div><b>🔁 Redirect Info:</b></div>
+          <div><b>Final URL:</b> ${redirectData.final_url || "N/A"}</div>
+          <div><b>Redirected:</b> ${redirectData.is_suspicious ? "<span class='suspicious'>Yes</span>" : "<span class='safe'>No</span>"}</div>
+          <div><b>Reason:</b> ${redirectData.reason || "N/A"}</div>
+        `;
 
-            // Run both requests in parallel
-            const [scanRes, redirectRes] = await Promise.all([
-            fetch('http://127.0.0.1:8000/api/check-url/', {
-                method: 'POST',
-                headers,
-                body
-            }),
-            fetch('http://127.0.0.1:8000/api/redirect-analyzer/', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({ url }) // only URL needed for redirect analyzer
-            })
-            ]);
+        resultDiv.innerHTML = `
+          <div>🔍 Result: <span class="${classification.toLowerCase()}">${classification.toUpperCase()}</span></div>
+          <div><b>Reason:</b> ${reason}</div>
+          <br>
+          ${redirectInfo}
+        `;
+        resultDiv.className = classification.toLowerCase();
 
-            const scanData = await scanRes.json();
-            const redirectData = await redirectRes.json();
-
-            if (!scanRes.ok || !redirectRes.ok) {
-            throw new Error(scanData.error || redirectData.error || 'Unknown error');
-            }
-
-            const classification = scanData.classification || "unknown";
-            const reason = scanData.reason || "No reason provided.";
-
-            const redirectInfo = `
-            <div><b>Redirect Info:</b></div>
-            <div>Final URL: ${redirectData.final_url || "N/A"}</div>
-            <div>Redirected: ${redirectData.is_suspicious ? "Yes" : "No"}</div>
-            <div>Reason: ${redirectData.reason || "N/A"}</div>
-            `;
-
-            resultDiv.innerHTML = `
-            <div>Result: <span class="${classification.toLowerCase()}">${classification.toUpperCase()}</span></div>
-            <div>Reason: ${reason}</div>
-            <br>
-            ${redirectInfo}
-            `;
-            resultDiv.className = classification.toLowerCase();
-
-        } catch (error) {
-            resultDiv.textContent = `Error: ${error.message}`;
-            resultDiv.className = 'malicious';
-        }
+      } catch (error) {
+        resultDiv.textContent = `Error: ${error.message}`;
+        resultDiv.className = 'malicious';
+      }
     }
-
   </script>
 
 </body>

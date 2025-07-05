@@ -8,3 +8,5 @@ python-decouple
 httpx
 uvicorn
 tldextract
+webdriver-manager
+selenium
