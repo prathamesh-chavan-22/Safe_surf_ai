@@ -5,3 +5,4 @@ requests
 virustotal-python
 dotenv
 python-decouple
+httpx
