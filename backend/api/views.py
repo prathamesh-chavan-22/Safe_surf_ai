@@ -1,22 +1,41 @@
 from django.shortcuts import render
-from django.rest_framework.views import APIView
-from django.rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .modules.detect_and_expand import is_shortened_url
+from .modules.virustotal_checker import scan_url
 
-
-class CheckUrlView(APIView):
-    """
-    View to check if a URL is safe.
-    """
-
+class Calculate_Suspicion(APIView):
     def post(self, request):
-        url = request.data.get('url')
-        print(f"Received URL: {url}")  # Debugging line to check the received URL
+        print(request.data)
+        url = request.data.get("url")
+        url = url.strip() if url else None  # Ensure URL is not None and strip whitespace
         if not url:
-            return Response({'error': 'URL is required'}, status=400)
+            return Response({"error": "Missing URL"}, status=400)
 
-        # Here you would implement the logic to check the URL's safety.
-        # For now, we will just return a dummy response.
-        is_safe = True  # Replace with actual safety check logic
+        # Expand URL if shortened
+        shortened, expanded = is_shortened_url(url)
 
-        return Response({'url': url, 'is_safe': is_safe})
+        stats = scan_url(expanded)
 
+        data = {
+            "Is_shortened": shortened,
+            "Expanded URL": expanded,
+        }
+
+        if stats["malicious"] > 0:
+            classification = "malicious"
+            reason = "Detected as malicious by VirusTotal"
+        elif stats["suspicious"] > 0:
+            classification = "suspicious"
+            reason = "Detected as suspicious by VirusTotal"
+        else:
+            classification = "safe"
+
+        
+
+
+        return Response({
+            "classification": classification,
+            "reason": reason,
+            "details": data
+        })
