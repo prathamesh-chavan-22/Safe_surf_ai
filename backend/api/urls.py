@@ -1,6 +1,6 @@
 from django.urls import path, include
-from .views import a
+from .views import CheckUrlView
 
 urlpatterns = [
-    path('check_url/', include('api.urls')),
+    path('check_url/', CheckUrlView.as_view(), name='check_url'),
 ]
