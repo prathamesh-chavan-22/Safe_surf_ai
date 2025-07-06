@@ -4,55 +4,273 @@
   <meta charset="UTF-8">
   <title>SafeSurf URL Checker</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      padding: 10px;
-      width: 350px; /* Adjust width for the popup */
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 380px;
+      min-height: 500px;
+      padding: 0;
+      margin: 0;
+      overflow-x: hidden;
     }
-    input, button {
-      padding: 8px;
+
+    .popup-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 0 0 20px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 25px;
+      width: 100%;
+      min-height: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-top: none;
+    }
+
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 25px;
+      font-size: 22px;
+      font-weight: 600;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 16px;
       font-size: 14px;
-      width: calc(100% - 16px); /* Adjust for padding */
-      margin: 4px 0;
-      box-sizing: border-box; /* Include padding in width */
+      border: 2px solid #e1e8ed;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      transition: all 0.3s ease;
+      outline: none;
+      font-family: inherit;
     }
+
+    input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+
+    input::placeholder {
+      color: #8a9ba8;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .button-group.single {
+      grid-template-columns: 1fr;
+    }
+
     button {
-      cursor: pointer;
-    }
-    #authResult {
-      margin-top: 10px;
-      padding: 8px;
-      background: #f0f0f0;
-      border-radius: 6px;
+      padding: 12px 16px;
       font-size: 14px;
-      font-weight: bold;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+      position: relative;
+      overflow: hidden;
     }
-    .safe { color: green; }
-    .suspicious { color: orange; }
-    .malicious { color: red; }
-    .hidden { display: none; }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    #sendOtpButton {
+      background: linear-gradient(45deg, #4facfe, #00f2fe);
+      color: white;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    }
+
+    #sendOtpButton:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79, 172, 254, 0.4);
+    }
+
+    #registerButton {
+      background: linear-gradient(45deg, #43e97b, #38f9d7);
+      color: white;
+      box-shadow: 0 4px 15px rgba(67, 233, 123, 0.3);
+    }
+
+    #registerButton:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(67, 233, 123, 0.4);
+    }
+
+    #loginButton {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    #loginButton:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    #logoutButton1, #logoutButton2 {
+      background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      color: white;
+      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+    }
+
+    #logoutButton1:hover, #logoutButton2:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    #loggedInSection {
+      text-align: center;
+      background: rgba(67, 233, 123, 0.1);
+      border: 2px solid rgba(67, 233, 123, 0.3);
+      border-radius: 15px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    #loggedInSection p {
+      color: #333;
+      font-size: 15px;
+      margin-bottom: 15px;
+    }
+
+    #loggedInEmail {
+      color: #43e97b;
+      font-weight: 600;
+    }
+
+    #authResult {
+      margin-top: 18px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 15px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+      min-height: 20px;
+    }
+
+    .safe {
+      color: #43e97b;
+      border-color: rgba(67, 233, 123, 0.3);
+      background: rgba(67, 233, 123, 0.1);
+    }
+
+    .suspicious {
+      color: #ffa726;
+      border-color: rgba(255, 167, 38, 0.3);
+      background: rgba(255, 167, 38, 0.1);
+    }
+
+    .malicious {
+      color: #ff6b6b;
+      border-color: rgba(255, 107, 107, 0.3);
+      background: rgba(255, 107, 107, 0.1);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Subtle animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .popup-container {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Prevent any overflow issues */
+    html {
+      width: 380px;
+      overflow-x: hidden;
+    }
   </style>
 </head>
 <body>
+  <div class="popup-container">
+    <h2>SafeSurf Authentication</h2>
+    
+    <div id="authSection">
+      <div class="form-group">
+        <input type="email" id="email" placeholder="Email">
+      </div>
+      <div class="form-group">
+        <input type="password" id="password" placeholder="Password">
+      </div>
+      <div class="form-group">
+        <input type="text" id="otp" placeholder="OTP (from email)">
+      </div>
 
-  <h2>SafeSurf Authentication</h2>
-  <div id="authSection">
-    <input type="email" id="email" placeholder="Email"><br>
-    <input type="password" id="password" placeholder="Password"><br>
-    <input type="text" id="otp" placeholder="OTP (from email)"><br>
+      <div class="button-group">
+        <button id="sendOtpButton">Send OTP</button>
+        <button id="registerButton">Register</button>
+      </div>
+      <div class="button-group">
+        <button id="loginButton">Login</button>
+        <button id="logoutButton1">Logout</button>
+      </div>
+    </div>
 
-    <button id="sendOtpButton">Send OTP</button>
-    <button id="registerButton">Register</button>
-    <button id="loginButton">Login</button>
-    <button id="logoutButton1">Logout</button> </div>
+    <div id="loggedInSection" class="hidden">
+      <p>You are logged in as: <strong id="loggedInEmail"></strong></p>
+      <div class="button-group single">
+        <button id="logoutButton2">Logout</button>
+      </div>
+    </div>
 
-  <div id="loggedInSection" class="hidden">
-    <p>You are logged in as: <strong id="loggedInEmail"></strong></p>
-    <button id="logoutButton2">Logout</button> </div>
-
-  <div id="authResult"></div>
+    <div id="authResult"></div>
+  </div>
 
   <script src="popup.js"></script>
-
 </body>
 </html>
