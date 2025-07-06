@@ -1,0 +1,64 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  width: 350px;
+}
+
+input, button {
+  padding: 10px;
+  font-size: 14px;
+  width: 100%;
+  margin: 5px 0;
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+#authResult {
+  margin-top: 15px;
+  padding: 10px;
+  background: #f0f0f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  color: black;
+}
+
+.safe {
+  color: green;
+}
+
+.suspicious {
+  color: orange;
+}
+
+.malicious {
+  color: red;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(0,0,0,0.3);
+  border-top: 3px solid #000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

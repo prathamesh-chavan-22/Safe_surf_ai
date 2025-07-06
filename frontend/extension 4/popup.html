@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SafeSurf URL Checker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 10px;
+      width: 350px; /* Adjust width for the popup */
+    }
+    input, button {
+      padding: 8px;
+      font-size: 14px;
+      width: calc(100% - 16px); /* Adjust for padding */
+      margin: 4px 0;
+      box-sizing: border-box; /* Include padding in width */
+    }
+    button {
+      cursor: pointer;
+    }
+    #authResult {
+      margin-top: 10px;
+      padding: 8px;
+      background: #f0f0f0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .safe { color: green; }
+    .suspicious { color: orange; }
+    .malicious { color: red; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <h2>SafeSurf Authentication</h2>
+  <div id="authSection">
+    <input type="email" id="email" placeholder="Email"><br>
+    <input type="password" id="password" placeholder="Password"><br>
+    <input type="text" id="otp" placeholder="OTP (from email)"><br>
+
+    <button id="sendOtpButton">Send OTP</button>
+    <button id="registerButton">Register</button>
+    <button id="loginButton">Login</button>
+    <button id="logoutButton1">Logout</button> </div>
+
+  <div id="loggedInSection" class="hidden">
+    <p>You are logged in as: <strong id="loggedInEmail"></strong></p>
+    <button id="logoutButton2">Logout</button> </div>
+
+  <div id="authResult"></div>
+
+  <script src="popup.js"></script>
+
+</body>
+</html>

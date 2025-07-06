@@ -1,5 +1,6 @@
 import time
 import logging
+import tldextract
 from asgiref.sync import async_to_sync
 from django.core.mail import send_mail
 from rest_framework.views import APIView
@@ -15,11 +16,17 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from urllib.parse import urlparse
 import logging
+from .modules.https_checker import check_https_and_certificate_async
+from .modules.Lexical_analysis import classify_url
+from .modules.domain2 import is_suspicious_domain
+
+
 
 logger = logging.getLogger(__name__)
 
 class Calculate_Suspicion(APIView):
     def post(self, request):
+        score = 0
         start_time = time.time()
         logger.info("▶️ URL check started")
 
@@ -29,7 +36,7 @@ class Calculate_Suspicion(APIView):
         if not url or not user_email:
             logger.warning("❌ Missing URL or Email")
             return Response({"error": "Missing URL or Email"}, status=400)
-        
+
         cached = URLScanResult.objects.filter(url=url).first()
         if cached:
             logger.info("⚡ Returned cached classification")
@@ -38,8 +45,8 @@ class Calculate_Suspicion(APIView):
             if classification != "safe":
                 self.send_alert(user_email, url, classification, reason)
             return Response({
-                "classification": cached.classification,
-                "reason": cached.reason,
+                "classification": classification,
+                "reason": reason,
                 "details": {
                     "Cached": True
                 }
@@ -51,20 +58,12 @@ class Calculate_Suspicion(APIView):
         logger.info(f"🕵️ Homograph check (original): {round(time.time() - t1, 4)} sec")
 
         if count > 0:
+            score += 30
             t2 = time.time()
             shortened, expanded = async_to_sync(is_shortened_url)(url)
             logger.info(f"🔗 Shortened check: {round(time.time() - t2, 4)} sec")
             self.send_alert(user_email, url, "suspicious", "Homograph characters detected")
-            logger.info(f"⏱️ Total time: {round(time.time() - start_time, 4)} sec")
-            return Response({
-                "classification": "suspicious",
-                "reason": "Detected homograph characters in URL",
-                "details": {
-                    "Is_shortened": shortened,
-                    "Expanded URL": expanded,
-                    "Suspicious Characters": suspicious_chars
-                }
-            })
+            return self.final_response(score, user_email, url, shortened, expanded, "Detected homograph characters in URL", suspicious_chars, start_time)
 
         # 2. Expand the URL
         t3 = time.time()
@@ -77,32 +76,58 @@ class Calculate_Suspicion(APIView):
         logger.info(f"🕵️ Homograph check (expanded): {round(time.time() - t4, 4)} sec")
 
         if count > 0:
+            score += 30
             self.send_alert(user_email, expanded, "suspicious", "Homograph characters detected after expansion")
-            logger.info(f"⏱️ Total time: {round(time.time() - start_time, 4)} sec")
-            return Response({
-                "classification": "suspicious",
-                "reason": "Detected homograph characters in expanded URL",
-                "details": {
-                    "Is_shortened": shortened,
-                    "Expanded URL": expanded,
-                    "Suspicious Characters": suspicious_chars
-                }
-            })
+            return self.final_response(score, user_email, url, shortened, expanded, "Detected homograph characters in expanded URL", suspicious_chars, start_time)
 
         # 4. Scan with VirusTotal
         t5 = time.time()
         stats = async_to_sync(scan_url)(expanded)
         logger.info(f"🛡️ VirusTotal scan: {round(time.time() - t5, 4)} sec")
 
-        # 5. Classification decision
-        classification = "safe"
-        reason = ""
         if stats["malicious"] > 0:
-            classification = "malicious"
-            reason = "Detected as malicious by VirusTotal"
+            score += 50
         elif stats["suspicious"] > 0:
+            score += 30
+
+        # 5. Check HTTPS and certificate
+        t6 = time.time()
+        https_check = async_to_sync(check_https_and_certificate_async)(expanded)
+        logger.info(f"🔒 HTTPS check: {round(time.time() - t6, 4)} sec")
+        if not https_check["Is HTTPS"]:
+            score += 25
+            self.send_alert(user_email, expanded, "suspicious", "URL is not using HTTPS")
+            return self.final_response(score, user_email, url, shortened, expanded, "URL is not using HTTPS", https_check, start_time)
+
+        # 6. Lexical analysis
+        t7 = time.time()
+        lexical_result = classify_url(expanded)
+        logger.info(f"🧠 Lexical analysis: {round(time.time() - t7, 4)} sec")
+        if lexical_result["classification"].lower() != "safe":
+            score += 30
+            self.send_alert(user_email, expanded, lexical_result["classification"], "Lexical analysis detected risk")
+            return self.final_response(score, user_email, url, shortened, expanded, "Lexical analysis indicates risk", lexical_result, start_time)
+
+        # # 7. Domain suspiciousness check
+        # t8 = time.time()
+        # subdomain, domain, suffix = tldextract.extract(expanded)
+        # is_suspicious, reason_text = is_suspicious_domain(domain, subdomain)
+        # logger.info(f"🌐 Domain suspiciousness check: {round(time.time() - t8, 4)} sec")
+        # if is_suspicious:
+        #     score += 20
+
+
+
+        # Final classification
+        if score >= 70:
+            classification = "malicious"
+            reason = "High cumulative risk score"
+        elif score >= 50:
             classification = "suspicious"
-            reason = "Detected as suspicious by VirusTotal"
+            reason = "Moderate risk score"
+        else:
+            classification = "safe"
+            reason = "No significant threats found"
 
         if classification != "safe":
             self.send_alert(user_email, expanded, classification, reason)
@@ -116,8 +141,24 @@ class Calculate_Suspicion(APIView):
             "classification": classification,
             "reason": reason,
             "details": {
+                "Score": score,
+                "Is_shortened": shortened,
+                "Expanded URL": expanded
+            }
+        })
+
+    def final_response(self, score, email, original_url, shortened, expanded, reason, extra_detail, start_time):
+        classification = "malicious" if score >= 70 else "suspicious"
+        self.send_alert(email, expanded, classification, reason)
+        logger.info(f"⏱️ Total time: {round(time.time() - start_time, 4)} sec")
+        return Response({
+            "classification": classification,
+            "reason": reason,
+            "details": {
+                "Score": score,
                 "Is_shortened": shortened,
                 "Expanded URL": expanded,
+                "Extra Detail": extra_detail
             }
         })
 
@@ -125,29 +166,30 @@ class Calculate_Suspicion(APIView):
         threading.Thread(
             target=self._send_alert_email,
             args=(email, url, status, reason),
-            daemon=True  # Ensure thread exits with main process
+            daemon=True
         ).start()
 
     def _send_alert_email(self, email, url, status, reason):
         subject = f"[SafeSurf] Alert: {status.upper()} URL detected"
         message = f"""
-    Hello,
+Hello,
 
-    You just visited a URL that was classified as *{status.upper()}*.
+You just visited a URL that was classified as *{status.upper()}*.
 
-    URL: {url}
-    Reason: {reason}
+URL: {url}
+Reason: {reason}
 
-    Please proceed with caution.
+Please proceed with caution.
 
-    - SafeSurf Security Team
-    """
+- SafeSurf Security Team
+"""
         try:
             t_alert = time.time()
             send_mail(subject, message, None, [email], fail_silently=False)
             logger.info(f"📧 Alert email sent to {email} in {round(time.time() - t_alert, 4)} sec")
         except Exception as e:
             logger.error(f"❌ Failed to send email to {email}: {str(e)}")
+
 
 
 class RedirectAnalyzer(APIView):
