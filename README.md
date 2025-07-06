@@ -18,13 +18,13 @@
 ## 🧱 Tech Stack
 
 | Layer        | Technology                        |
-|--------------|------------------------------------|
-| Frontend     | HTML, CSS, JavaScript (Popup UI)   |
-| Extension    | Chrome Manifest V3, JS APIs        |
-| Backend      | Django, FastAPI (for some modules) |
-| AI Modules   | Python (sklearn, transformers, etc.)|
-| Automation   | Selenium for live page capture     |
-| External APIs| VirusTotal                         |
+|--------------|-------------------------------------------- |
+| Frontend     | HTML, CSS, js (Popup UI), Node.js, Tailwind |
+| Extension    | Chrome Manifest V3, JS APIs                 |
+| Backend      | Django, FastAPI (for some modules)          |
+| AI Modules   | Python (sklearn, transformers, etc.)        |
+| Automation   | Selenium for live page capture              |
+| External APIs| VirusTotal                                  |
 
 ---
 
