@@ -10,3 +10,8 @@ uvicorn
 tldextract
 webdriver-manager
 selenium
+pandas
+numpy
+scikit-learn
+joblib
+whois

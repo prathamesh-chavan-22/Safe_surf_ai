@@ -18,8 +18,7 @@ from urllib.parse import urlparse
 import logging
 from .modules.https_checker import check_https_and_certificate_async
 from .modules.Lexical_analysis import classify_url
-from .modules.domain2 import is_suspicious_domain
-
+from .modules.subdomain import async_predict_url as predict_url
 
 
 logger = logging.getLogger(__name__)
@@ -104,19 +103,21 @@ class Calculate_Suspicion(APIView):
         lexical_result = classify_url(expanded)
         logger.info(f"🧠 Lexical analysis: {round(time.time() - t7, 4)} sec")
         if lexical_result["classification"].lower() != "safe":
-            score += 30
-            self.send_alert(user_email, expanded, lexical_result["classification"], "Lexical analysis detected risk")
+            score += 5
+            # self.send_alert(user_email, expanded, lexical_result["classification"], "Lexical analysis detected risk")
             return self.final_response(score, user_email, url, shortened, expanded, "Lexical analysis indicates risk", lexical_result, start_time)
 
-        # # 7. Domain suspiciousness check
-        # t8 = time.time()
-        # subdomain, domain, suffix = tldextract.extract(expanded)
-        # is_suspicious, reason_text = is_suspicious_domain(domain, subdomain)
-        # logger.info(f"🌐 Domain suspiciousness check: {round(time.time() - t8, 4)} sec")
-        # if is_suspicious:
-        #     score += 20
+        # 7. Subdomain prediction
+        t9 = time.time()
+        subdomain_result = async_to_sync(predict_url)(expanded)
+        logger.info(f"🔍 Subdomain prediction: {round(time.time() - t9, 4)}")
+                    
+        if subdomain_result["predicted_label"] == 1:
+            score += 20
 
-
+            # self.send_alert(user_email, expanded, "suspicious", "Subdomain prediction indicates risk")
+            result = self.final_response(score, user_email, url, shortened, expanded, "Subdomain prediction indicates risk", subdomain_result, start_time)    
+        
 
         # Final classification
         if score >= 70:
