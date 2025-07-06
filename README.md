@@ -42,7 +42,7 @@
 ```bash
 git clone https://github.com/prathamesh-chavan-22/Safe_surf_ai.git
 cd Safe_surf_ai
-
+```
 ### Backend Setup
 
 ```bash
@@ -51,6 +51,8 @@ python -m venv venv
 source venv/bin/activate     # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 python manage.py runserver
+```
+
 ### 🧩 Chrome Extension Setup
 1. Open `chrome://extensions` in Chrome  
 2. Enable **Developer mode**  
